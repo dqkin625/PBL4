@@ -15,10 +15,6 @@ def get_news():
 
         content_html = entry.get("content", [{}])[0].get("value", "")
         content_text = BeautifulSoup(content_html, "html.parser").getText()
-        
-        from pprint import pprint
-        print("\n==== ENTRY ====")
-        pprint(entry)
 
         news_items.append(
             {
