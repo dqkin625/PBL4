@@ -13,10 +13,6 @@ def get_news():
     
     for entry in feed.entries:
 
-        from pprint import pprint
-        print("\n==== ENTRY ====")
-        pprint(entry)
-
         content_html = entry.get("content", [{}])[0].get("value", "")
         content_text = BeautifulSoup(content_html, "html.parser").getText()
         
