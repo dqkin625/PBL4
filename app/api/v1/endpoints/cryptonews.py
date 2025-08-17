@@ -18,10 +18,10 @@ def get_news():
 
         news_items.append(
             {
+                "url": entry.get("link", ""),
                 "title": entry.get("title", ""),
-                "link": entry.get("link", ""),
                 "media": entry.get("links", [{}])[1].get("href",""),
-                "published": entry.get("published",""),
+                "published_time": entry.get("published",""),
                 # "description": entry.get("title_detail", {}).get("value",""),
                 "author": entry.get("authors", ""),
                 "content": content_text
