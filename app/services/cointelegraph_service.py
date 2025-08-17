@@ -1,17 +1,11 @@
-import re
 from typing import Dict, Optional
 import requests
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
+import feedparser
 
-LISTING_URL = "https://cointelegraph.com/category/latest-news"
 HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (X11; Linux x86_64) "
@@ -20,73 +14,34 @@ HEADERS = {
     )
 }
 
-HOURS_OR_MINUTES_RE = re.compile(r'\b(\d+)\s+(HOUR|HOURS|MINUTE|MINUTES)\s+AGO\b', re.I)
-DATE_STAMP_RE = re.compile(r'^[A-Z]{3}\s+\d{1,2},\s+\d{4}$')  # e.g. AUG 16, 2025
+# COINTELEGERAPH_RSS = "https://cointelegraph.com/rss"
 
-def get_article_links(url: str):
-    opts = Options()
-    opts.add_argument("--headless=new")
-    opts.add_argument("--disable-gpu")
-    opts.add_argument("--no-sandbox")
-    driver = webdriver.Chrome(options=opts)
+def get_article_links(url: str) -> list:
+    feed = feedparser.parse(url)
+    today_links = []
 
-    try:
-        driver.get(url)
-        # Đợi danh sách render xong (có ảnh + tiêu đề)
-        WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.TAG_NAME, "h1"))
-        )
-        soup = BeautifulSoup(driver.page_source, "html.parser")
-    finally:
-        driver.quit()
+    # Ngày hôm nay (UTC+7)
+    now_vn = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh")).date()
 
-    results = []
-    seen = set()
-
-    main = soup.find("main") or soup
-
-    # Tìm mọi block có text thời gian
-    for time_block in main.find_all(string=True):
-        text = time_block.strip().upper()
-        if not text:
+    for entry in feed.entries:
+        pub_str = entry.get("published")
+        if not pub_str:
             continue
 
-        # Nếu chạm tới mốc là ngày tháng -> dừng (đã sang các bài cũ hơn)
-        if DATE_STAMP_RE.match(text):
-            break
+        try:
+            # Parse pubDate (vd: Sun, 17 Aug 2025 18:14:47 +0100)
+            pub_dt = datetime.strptime(pub_str, "%a, %d %b %Y %H:%M:%S %z")
 
-        # Chỉ quan tâm block có "HOURS AGO / MINUTES AGO"
-        if not HOURS_OR_MINUTES_RE.search(text):
-            continue
+            # Đổi sang giờ VN
+            pub_dt_vn = pub_dt.astimezone(ZoneInfo("Asia/Ho_Chi_Minh"))
 
-        # Từ block thời gian, tìm phần tử bao ngoài (card)
-        card = None
-        node = getattr(time_block, "parent", None)
-        # leo lên vài cấp để tìm card chứa link bài
-        for _ in range(6):
-            if node is None:
-                break
-            # trong card phải có link /news/
-            a = node.find("a", href=True)
-            if a and a["href"].startswith("/news/"):
-                card = node
-                break
-            node = node.parent
+            # So sánh theo ngày
+            if pub_dt_vn.date() == now_vn:
+                today_links.append(entry.get("link", ""))
+        except Exception as e:
+            print("Lỗi parse pubDate:", e, pub_str)
 
-        if not card:
-            continue
-
-        # Lấy link tiêu đề trong card
-        a = card.find("a", href=True)
-        if not a or not a["href"].startswith("/news/"):
-            continue
-
-        full = urljoin(url, a["href"])
-        if full not in seen:
-            seen.add(full)
-            results.append(full)
-
-    return results
+    return today_links
 
 def scrape_article(url: str) -> Dict:
     response = requests.get(url, headers=HEADERS, timeout=15)

@@ -3,7 +3,7 @@ from app.services.cointelegraph_service import get_article_links, scrape_article
 
 router = APIRouter()
 
-COINTELEGRAPH_URL = "https://cointelegraph.com/category/latest-news"
+COINTELEGRAPH_URL = "https://cointelegraph.com/rss"
 
 @router.get('/cointelegraph_news')
 def crawl_articles():
