@@ -43,10 +43,7 @@ def get_article_links(url: str):
     results = []
     seen = set()
 
-    # Ý tưởng: mỗi "card" bài trong listing có một block chứa tiêu đề (thẻ <a href="/news/...">)
-    # và ngay gần đó có mốc thời gian dạng "12 HOURS AGO", "22 HOURS AGO" ...
-    # Ta chỉ lấy link thuộc những card có mốc thời gian như vậy; nếu gặp mốc là "AUG 16, 2025" thì dừng.
-    main = soup.find("main") or soup  # giới hạn phạm vi trong <main> để tránh sidebar/footer
+    main = soup.find("main") or soup
 
     # Tìm mọi block có text thời gian
     for time_block in main.find_all(string=True):
@@ -89,7 +86,7 @@ def get_article_links(url: str):
             seen.add(full)
             results.append(full)
 
-    return results[1:]
+    return results
 
 def scrape_article(url: str) -> Dict:
     response = requests.get(url, headers=HEADERS, timeout=15)
@@ -110,7 +107,7 @@ def scrape_article(url: str) -> Dict:
         try:
             pub_dt = datetime.fromisoformat(dt_str.replace("Z", "+00:00")).astimezone(timezone.utc)
         except Exception:
-            pub_dt = dt_str  # fallback: trả raw string nếu parse lỗi
+            pub_dt = dt_str
 
     # --- author ---
     author: Optional[str] = None
@@ -119,15 +116,28 @@ def scrape_article(url: str) -> Dict:
         a = author_block.find("a")
         author = (a.get_text(strip=True) if a else author_block.get_text(strip=True)) or None
 
-    # --- description (giữ nguyên nếu bạn còn cần) ---
+    # --- description ---
     desc: Optional[str] = None
     meta_desc = soup.find("meta", {"property": "og:description"})
     if meta_desc and meta_desc.get("content"):
         desc = meta_desc["content"]
 
-    # --- content: gộp tất cả <p> trong khu vực nội dung ---
+    # --- media (ảnh đầu tiên trong <picture>) ---
+    media: Optional[str] = None
+    picture = soup.find("picture")
+    if picture:
+        # Ưu tiên lấy <img src>
+        img = picture.find("img")
+        if img and img.get("src"):
+            media = img["src"]
+        else:
+            # fallback: lấy source đầu tiên
+            source = picture.find("source")
+            if source and source.get("srcset"):
+                media = source["srcset"].split()[0]  # lấy url đầu tiên
+
+    # --- content ---
     content: Optional[str] = None
-    # cố gắng khoanh vùng đúng container nội dung
     article_container = soup.select_one(
         "div.post-content, div.post__content, div.post_content, "
         "div.post-content-wrapper, div.post_content-wrapper"
@@ -136,7 +146,6 @@ def scrape_article(url: str) -> Dict:
     if article_container:
         p_tags = article_container.find_all("p")
     else:
-        # fallback: lấy trong <main> (đề phòng class thay đổi)
         main = soup.find("main") or soup
         p_tags = main.find_all("p")
 
@@ -151,12 +160,12 @@ def scrape_article(url: str) -> Dict:
     return {
         "url": url,
         "title": title,
-        "media": "",
-        "published_time": pub_dt.astimezone(ZoneInfo("Asia/Ho_Chi_Minh")),
+        "media": media,
+        "published_time": pub_dt.astimezone(ZoneInfo("Asia/Ho_Chi_Minh")) if isinstance(pub_dt, datetime) else pub_dt,
         "author": author,
-        # "description": desc,
         "content": content,
     }
+
 
 # if __name__ == "__main__":
 #     from pprint import pprint
