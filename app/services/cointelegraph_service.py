@@ -1,3 +1,4 @@
+import re
 from typing import Dict, Optional
 import requests
 from selenium import webdriver
@@ -8,7 +9,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 from datetime import datetime, timezone
-import re
+from zoneinfo import ZoneInfo
 
 LISTING_URL = "https://cointelegraph.com/category/latest-news"
 HEADERS = {
@@ -151,7 +152,7 @@ def scrape_article(url: str) -> Dict:
         "url": url,
         "title": title,
         "media": "",
-        "published_time": pub_dt,
+        "published_time": pub_dt.astimezone(ZoneInfo("Asia/Ho_Chi_Minh")),
         "author": author,
         # "description": desc,
         "content": content,
