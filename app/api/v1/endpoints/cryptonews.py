@@ -33,4 +33,4 @@ def get_news():
             }
         )
     
-    return {"crytonews_news": news_items}
+    return {"data": news_items}

@@ -37,4 +37,6 @@ def get_news():
             }
         )
     
-    return {"coindesk_new": news_items}
+    return {"data": news_items}
+
+    #Sửa lại coindesk và cryptonews chỉ lấy bài ngày hôm nay
