@@ -4,3 +4,4 @@ feedparser
 httpx
 beautifulsoup4
 requests
+selenium
