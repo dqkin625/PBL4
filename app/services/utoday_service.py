@@ -154,13 +154,6 @@ def scrape_article(url: str) -> Dict:
             a = author_block.find("a")
             author = (a.get_text(strip=True) if a else author_block.get_text(strip=True)) or None
 
-
-    # --- description (không bắt buộc, nhưng hữu ích nếu bạn muốn lưu thêm) ---
-    desc: Optional[str] = None
-    meta_desc = soup.find("meta", {"property": "og:description"}) or soup.find("meta", {"name": "description"})
-    if meta_desc and meta_desc.get("content"):
-        desc = meta_desc["content"].strip()
-
     # --- media (ảnh cover) ---
     media: Optional[str] = None
     og_img = soup.find("meta", {"property": "og:image"}) or soup.find("meta", {"name": "og:image"})
@@ -214,13 +207,12 @@ def scrape_article(url: str) -> Dict:
             pub_dt_utc.astimezone(VN_TZ) if isinstance(pub_dt_utc, datetime) else None
         ),
         "author": author,
-        "description": desc,
         "content": content,
     }
 
 
-if __name__ == "__main__":
-    from pprint import pprint
-    links = get_article_links(UTODAY_RSS)
-    result = [scrape_article(link) for link in links]
-    pprint(result)
+# if __name__ == "__main__":
+#     from pprint import pprint
+#     links = get_article_links(UTODAY_RSS)
+#     result = [scrape_article(link) for link in links]
+#     pprint(result)

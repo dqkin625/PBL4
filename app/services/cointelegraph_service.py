@@ -24,22 +24,8 @@ def get_article_links(url: str) -> list:
     now_vn = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh")).date()
 
     for entry in feed.entries:
-        pub_str = entry.get("published")
-        if not pub_str:
-            continue
-
-        try:
-            # Parse pubDate (vd: Sun, 17 Aug 2025 18:14:47 +0100)
-            pub_dt = datetime.strptime(pub_str, "%a, %d %b %Y %H:%M:%S %z")
-
-            # Đổi sang giờ VN
-            pub_dt_vn = pub_dt.astimezone(ZoneInfo("Asia/Ho_Chi_Minh"))
-
-            # So sánh theo ngày
-            if pub_dt_vn.date() == now_vn:
-                today_links.append(entry.get("link", ""))
-        except Exception as e:
-            print("Lỗi parse pubDate:", e, pub_str)
+        today_links.append(entry.get("link", ""))
+        break #chỉ lấy link đầu tiên (link tổng hợp từ cointelegraph)
 
     return today_links
 
