@@ -1,0 +1,101 @@
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: crypto_news_mongo
+    restart: unless-stopped
+    environment:
+      - MONGO_INITDB_DATABASE=crypto_news
+    volumes:
+      - mongodb_data:/data/db
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - crypto_news_network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Crypto News API Application
+  app:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: crypto_news_api
+    restart: unless-stopped
+    ports:
+      - "8100:8000"
+    environment:
+      - MONGO_URI=mongodb://mongodb:27017
+      - MONGO_DB_NAME=crypto_news
+      - MONGO_COLLECTION_NEWS=news
+      - MONGO_COLLECTION_BULLETIN=bulletin
+      # API Keys and Auth
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - NEXT_PUBLIC_KEY=${NEXT_PUBLIC_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+      # CORS Configuration
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3003,http://localhost:8000,http://localhost:8089,https://console.bloktrading.io}
+    volumes:
+      - ./:/app
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - crypto_news_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    command: >
+      sh -c "
+        echo 'Waiting for MongoDB to be ready...' &&
+        sleep 10 &&
+        echo 'Setting up database...' &&
+        python setup_db.py &&
+        echo 'Starting FastAPI server...' &&
+        uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+      "
+
+  # Crypto News Scheduler
+  scheduler:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: crypto_news_scheduler
+    restart: unless-stopped
+    environment:
+      - MONGO_URI=mongodb://mongodb:27017
+      - MONGO_DB_NAME=crypto_news
+      - MONGO_COLLECTION_NEWS=news
+      - MONGO_COLLECTION_BULLETIN=bulletin
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - NEXT_PUBLIC_KEY=${NEXT_PUBLIC_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3003,http://localhost:8000,http://localhost:8089,https://console.bloktrading.io}
+    volumes:
+      - ./:/app
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - crypto_news_network
+    command: >
+      sh -c "
+        echo 'Waiting for API server to be ready...' &&
+        sleep 30 &&
+        echo 'Starting Docker Scheduler...' &&
+        python scheduler_docker.py
+      "
+
+volumes:
+  mongodb_data:
+    driver: local
+
+networks:
+  crypto_news_network:
+    driver: bridge

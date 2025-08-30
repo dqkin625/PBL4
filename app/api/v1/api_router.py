@@ -1,11 +1,7 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import coindesk, cryptonews, cointelegraph, utoday, theblock, coingape
+from app.api.v1.endpoints import news, stats
 
 router = APIRouter()
 
-router.include_router(coindesk.router, prefix="/v1", tags=["coindesk_news"])
-router.include_router(cryptonews.router, prefix="/v1", tags=["cryptonews_news"])
-router.include_router(cointelegraph.router, prefix="/v1", tags=["cointelegraph_news"])
-router.include_router(utoday.router, prefix="/v1", tags=["utoday_news"])
-router.include_router(theblock.router, prefix="/v1", tags=["theblock_news"])
-router.include_router(coingape.router, prefix="/v1", tags=["coingape_news"])
+router.include_router(news.router, prefix="/v1", tags=["news"])
+router.include_router(stats.router, prefix="/v1", tags=["stats"])

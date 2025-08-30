@@ -1,0 +1,117 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: crypto_news_mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_DATABASE=crypto_news
+    volumes:
+      - mongodb_data:/data/db
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - crypto_news_network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Crypto News API Application
+  app:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: crypto_news_api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - MONGO_URI=mongodb://mongodb:27017
+      - MONGO_DB_NAME=crypto_news
+      - MONGO_COLLECTION_NEWS=news
+      - MONGO_COLLECTION_BULLETIN=bulletin
+      # Thêm các biến môi trường khác nếu cần
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    volumes:
+      - ./:/app
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - crypto_news_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    command: >
+      sh -c "
+        echo 'Waiting for MongoDB to be ready...' &&
+        sleep 10 &&
+        echo 'Setting up database...' &&
+        python setup_db.py &&
+        echo 'Starting FastAPI server...' &&
+        uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+      "
+
+  # Crypto News Scheduler
+  scheduler:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: crypto_news_scheduler
+    restart: unless-stopped
+    environment:
+      - MONGO_URI=mongodb://mongodb:27017
+      - MONGO_DB_NAME=crypto_news
+      - MONGO_COLLECTION_NEWS=news
+      - MONGO_COLLECTION_BULLETIN=bulletin
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    volumes:
+      - ./:/app
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - crypto_news_network
+    command: >
+      sh -c "
+        echo 'Waiting for API server to be ready...' &&
+        sleep 30 &&
+        echo 'Starting Docker Scheduler...' &&
+        python scheduler_docker.py
+      "
+
+  # MongoDB Admin Interface (Optional)
+  mongo-express:
+    image: mongo-express:1.0.2
+    container_name: crypto_news_mongo_express
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      - ME_CONFIG_MONGODB_SERVER=mongodb
+      - ME_CONFIG_MONGODB_PORT=27017
+      - ME_CONFIG_BASICAUTH_USERNAME=admin
+      - ME_CONFIG_BASICAUTH_PASSWORD=admin123
+      - ME_CONFIG_MONGODB_ENABLE_ADMIN=true
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - crypto_news_network
+
+volumes:
+  mongodb_data:
+    driver: local
+
+networks:
+  crypto_news_network:
+    driver: bridge
