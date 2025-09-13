@@ -22,10 +22,10 @@ UTODAY_URL = "https://u.today/rss.php"
 # Cấu hình các nguồn RSS
 RSS_SOURCES = {
     "coindesk": COINDESK_RSS_FEED_URL,
-    "coingape": COINGAPE_RSS_FEED_URL,
-    "cointelegraph": COINTELEGRAPH_URL,
+    # "coingape": COINGAPE_RSS_FEED_URL,
+    # "cointelegraph": COINTELEGRAPH_URL,
     "cryptonews": CRYPTONEWS_RSS_FEED_URL,
-    "utoday": UTODAY_URL
+    # "utoday": UTODAY_URL
 }
 
 def scrape_rss_source(source_name: str, url: str):
