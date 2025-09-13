@@ -20,7 +20,7 @@ API_CONFIG = {
 # Schedule Configuration
 SCHEDULE_CONFIG = {
     # Thời gian giữa các lần chạy (phút)
-    "interval_minutes": 2,  # 3 tiếng = 180 phút
+    "interval_minutes": 180,  # 3 tiếng = 180 phút
     
     # Chạy ngay khi khởi động
     "run_on_startup": True,
