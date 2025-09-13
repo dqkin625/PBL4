@@ -479,83 +479,42 @@ def admin_login(
     )
 
 
-@router.get("/admin/bulletins")
-def admin_get_bulletins(
-    page: int = Query(default=1, ge=1, description="Số trang (bắt đầu từ 1)"),
-    page_size: int = Query(default=10, ge=1, le=100, description="Số lượng bulletin mỗi trang"),
-    sort_by: str = Query(default="created_at", description="Trường để sắp xếp"),
-    sort_order: str = Query(default="desc", description="Thứ tự sắp xếp (asc hoặc desc)"),
-    from_date: str = Query(default=None, description="Ngày bắt đầu (ISO format: YYYY-MM-DD)"),
-    to_date: str = Query(default=None, description="Ngày kết thúc (ISO format: YYYY-MM-DD)"),
-    current_user: dict = Depends(require_admin)
-):
+
+# --- Thêm 2 endpoint mới ---
+
+@router.get("/get_news_db")
+def get_news_db():
     """
-    Admin endpoint để lấy danh sách bulletin với phân trang
-    
-    Yêu cầu xác thực admin với JWT token:
-    - Header: Authorization: Bearer <token>
-    - Token must have role: admin
-    
-    Returns:
-        Danh sách bulletin với thông tin phân trang đầy đủ
+    Lấy toàn bộ bài viết có trong database (giới hạn 1000 bài viết).
     """
     try:
-        # Convert sort_order string to integer
-        sort_order_int = -1 if sort_order.lower() == "desc" else 1
-        
-        # Parse date filters if provided
-        from_time = None
-        to_time = None
-        
-        if from_date:
-            try:
-                from_time = datetime.fromisoformat(from_date + "T00:00:00")
-            except ValueError:
-                raise HTTPException(
-                    status_code=400, 
-                    detail=f"Invalid from_date format. Use YYYY-MM-DD"
-                )
-        
-        if to_date:
-            try:
-                to_time = datetime.fromisoformat(to_date + "T23:59:59")
-            except ValueError:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Invalid to_date format. Use YYYY-MM-DD"
-                )
-        
-        # Get paginated bulletins
-        result = get_bulletins_paginated(
-            page=page,
-            page_size=page_size,
-            sort_by=sort_by,
-            sort_order=sort_order_int,
-            from_time=from_time,
-            to_time=to_time
-        )
-        
-        if not result["success"]:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Database error: {result.get('error')}"
-            )
-        
+        news = get_news_from_db(limit=1000)
         return response_data(
             status_code=200,
             message=StatusMessage.SUCCESS,
-            data={
-                "message": f"Lấy thành công {len(result['data'])} bulletin",
-                "bulletins": result["data"],
-                "pagination": result["pagination"],
-                "authenticated_user": current_user.get("username", "admin")
-            }
+            data=news
         )
-        
-    except HTTPException:
-        raise
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Lỗi khi lấy bulletin: {str(e)}"
+        raise HTTPException(status_code=500, detail=f"Lỗi khi lấy bài viết từ database: {str(e)}")
+
+@router.get("/get_bulletin_db")
+def get_bulletin_db():
+    """
+    Lấy bulletin mới nhất có trong database.
+    """
+    try:
+        bulletins = get_bulletins_from_db(limit=1, sort_order=-1)
+        latest_bulletin = bulletins[0] if bulletins else None
+        if not latest_bulletin:
+            return response_data(
+                status_code=404,
+                message=StatusMessage.NOT_FOUND,
+                data=None
+            )
+        return response_data(
+            status_code=200,
+            message=StatusMessage.SUCCESS,
+            data=latest_bulletin
         )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Lỗi khi lấy bulletin mới nhất: {str(e)}")
