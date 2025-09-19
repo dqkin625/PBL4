@@ -226,6 +226,7 @@ def get_news_for_bulletin(
                     "title": article["title"],
                     "content": article["content"],
                     "source": article.get("source", "unknown"),
+                    "source_ava": article.get("source_ava", ""),
                     "url": article.get("url", ""),
                     "published_time": article.get("published_time", ""),
                     "author": article.get("author", "")
@@ -477,44 +478,3 @@ def admin_login(
             "message": "Login successful. Use this token in Authorization header as: Bearer <token>"
         }
     )
-
-
-
-# --- Thêm 2 endpoint mới ---
-
-@router.get("/get_news_db")
-def get_news_db():
-    """
-    Lấy toàn bộ bài viết có trong database (giới hạn 1000 bài viết).
-    """
-    try:
-        news = get_news_from_db(limit=1000)
-        return response_data(
-            status_code=200,
-            message=StatusMessage.SUCCESS,
-            data=news
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lỗi khi lấy bài viết từ database: {str(e)}")
-
-@router.get("/get_bulletin_db")
-def get_bulletin_db():
-    """
-    Lấy bulletin mới nhất có trong database.
-    """
-    try:
-        bulletins = get_bulletins_from_db(limit=1, sort_order=-1)
-        latest_bulletin = bulletins[0] if bulletins else None
-        if not latest_bulletin:
-            return response_data(
-                status_code=404,
-                message=StatusMessage.NOT_FOUND,
-                data=None
-            )
-        return response_data(
-            status_code=200,
-            message=StatusMessage.SUCCESS,
-            data=latest_bulletin
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lỗi khi lấy bulletin mới nhất: {str(e)}")

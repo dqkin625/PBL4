@@ -3,6 +3,7 @@ from typing import List, Dict, Optional
 import random
 from pymongo import UpdateOne
 from app.db.client import get_news_collection, get_bulletin_collection
+from app.config.source_avatars import get_source_avatar
 
 def _normalize_doc(doc: Dict, source: str = None) -> Dict:
         
@@ -82,6 +83,12 @@ def _normalize_doc(doc: Dict, source: str = None) -> Dict:
         normalized["source"] = str(doc["source"]).strip()
     else:
         normalized["source"] = "unknown"
+    
+    source_name = normalized.get("source", source)
+    if source_name:
+        normalized["source_ava"] = get_source_avatar(source_name)
+    else:
+        normalized["source_ava"] = ""
     
     return normalized
 
@@ -236,6 +243,10 @@ def get_news_from_db(
             # Chuyển datetime thành string nếu cần (để trả về JSON)
             if "published_time" in doc and isinstance(doc["published_time"], datetime):
                 doc["published_time"] = doc["published_time"].isoformat()
+            
+            if "source_ava" not in doc or not doc["source_ava"]:
+                source = doc.get("source", "")
+                doc["source_ava"] = get_source_avatar(source)
                 
             results.append(doc)
         
